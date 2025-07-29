@@ -58,12 +58,10 @@ fun FloatyNavBar(navController: NavController) {
             items.forEach { item ->
                 val selected = currentRoute == item.route
                 IconButton(onClick = {
-                    if (currentRoute != item.route) {
-                        navController.navigate(item.route) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                    navController.navigate(item.route) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 }) {
                     Icon(

@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import com.mhp.cluster.ui.navigation.AppNavGraph
 import com.mhp.cluster.ui.navigation.FloatyNavBar
 import com.mhp.cluster.ui.theme.ClusterTheme
+import com.mhp.cluster.ui.theme.PageBackground
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,7 +29,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    containerColor = Color.Transparent,
+                    containerColor = PageBackground,
                     bottomBar = {
                         FloatyNavBar(navController = navController)
                     }
