@@ -12,6 +12,11 @@ composeBom = "2024.09.00"
 materialIconsExtended = "1.7.8"
 navigationCompose = "2.7.7"
 navigationRuntimeAndroid = "2.9.2"
+osmdroidAndroid = "6.1.18"
+osmdroidGeopackage = "6.1.18"
+osmdroidMapsforge = "6.1.18"
+osmdroidWms = "6.1.18"
+playServicesLocation = "21.3.0"
 playServicesMaps = "19.2.0"
 
 [libraries]
@@ -33,6 +38,11 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-navigation-runtime-android = { group = "androidx.navigation", name = "navigation-runtime-android", version.ref = "navigationRuntimeAndroid" }
+osmdroid-android = { module = "org.osmdroid:osmdroid-android", version.ref = "osmdroidAndroid" }
+osmdroid-geopackage = { module = "org.osmdroid:osmdroid-geopackage", version.ref = "osmdroidGeopackage" }
+osmdroid-mapsforge = { module = "org.osmdroid:osmdroid-mapsforge", version.ref = "osmdroidMapsforge" }
+osmdroid-wms = { module = "org.osmdroid:osmdroid-wms", version.ref = "osmdroidWms" }
+play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 
 [plugins]

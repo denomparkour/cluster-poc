@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -48,6 +49,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.remember
+import org.osmdroid.util.GeoPoint
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -62,6 +65,7 @@ fun HomeScreen(navController: NavController) {
     var isPlaying by remember { mutableStateOf(true) }
     var currentProgress by remember { mutableStateOf(0.3f) }
     var isWeatherLoading by remember { mutableStateOf(false) }
+    var hasCurrentJourney by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -86,18 +90,30 @@ fun HomeScreen(navController: NavController) {
         derivedStateOf { locationService.hasLocationPermission() }
     }
     
+    // Check for current journey and update ETA in real-time
     LaunchedEffect(Unit) {
         val currentDestination = navigationRepository.getCurrentDestination()
         if (currentDestination != null) {
-            routeInfo = NavigationRepository.RouteInfo(
-                destination = currentDestination,
-                eta = "9 min",
-                distance = "1.8 mi",
-                duration = 540,
-                polyline = "",
-                startLocation = com.google.android.gms.maps.model.LatLng(40.7128, -74.0060),
-                endLocation = com.google.android.gms.maps.model.LatLng(40.7589, -73.9851)
-            )
+            hasCurrentJourney = true
+            // Get cached route info
+            val cachedRoute = navigationRepository.getCachedRouteInfo()
+            if (cachedRoute != null) {
+                routeInfo = cachedRoute
+            } else {
+                // Fallback to demo data
+                routeInfo = NavigationRepository.RouteInfo(
+                    destination = currentDestination,
+                    eta = "9 min",
+                    distance = "1.8 mi",
+                    duration = 540,
+                    polyline = emptyList(),
+                    startLocation = GeoPoint(40.7128, -74.0060),
+                    endLocation = GeoPoint(40.7589, -73.9851)
+                )
+            }
+        } else {
+            hasCurrentJourney = false
+            routeInfo = null
         }
         
         if (hasLocationPermission) {
@@ -109,6 +125,26 @@ fun HomeScreen(navController: NavController) {
                     e.printStackTrace()
                 } finally {
                     isWeatherLoading = false
+                }
+            }
+        }
+    }
+    
+    // Real-time ETA updates
+    LaunchedEffect(hasCurrentJourney) {
+        if (hasCurrentJourney) {
+            while (true) {
+                delay(30000) // Update every 30 seconds
+                val currentDestination = navigationRepository.getCurrentDestination()
+                if (currentDestination != null) {
+                    val cachedRoute = navigationRepository.getCachedRouteInfo()
+                    if (cachedRoute != null) {
+                        routeInfo = cachedRoute
+                    }
+                } else {
+                    hasCurrentJourney = false
+                    routeInfo = null
+                    break
                 }
             }
         }
@@ -263,7 +299,7 @@ fun HomeScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            val tabs = listOf("Status", "Safety", "Location")
+            val tabs = listOf("Status", "Widgets", "Location")
             tabs.forEachIndexed { i, tab ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -341,64 +377,103 @@ fun HomeScreen(navController: NavController) {
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = WidgetBackground,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { navController.navigate(Screen.Search.route) }
-            ) {
-                Row(
+            if (hasCurrentJourney && routeInfo != null) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = WidgetBackground,
                     modifier = Modifier
-                        .padding(18.dp)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .fillMaxWidth()
+                        .clickable { navController.navigate(Screen.Search.route) }
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            routeInfo?.eta ?: "9 min", 
-                            fontWeight = FontWeight.Bold, 
-                            fontSize = 22.sp, 
-                            color = Color.Black
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            "9:50 ETA · ${routeInfo?.distance ?: "1.8 mi"}", 
-                            color = Color.Gray, 
-                            fontSize = 15.sp
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                                contentDescription = null,
-                                tint = Color.Gray,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                    Row(
+                        modifier = Modifier
+                            .padding(18.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                routeInfo?.destination ?: "Your preferred route", 
+                                routeInfo?.eta ?: "9 min", 
+                                fontWeight = FontWeight.Bold, 
+                                fontSize = 22.sp, 
+                                color = Color.Black
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "9:50 ETA · ${routeInfo?.distance ?: "1.8 mi"}", 
                                 color = Color.Gray, 
                                 fontSize = 15.sp
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                    contentDescription = null,
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    routeInfo?.destination ?: "Your preferred route", 
+                                    color = Color.Gray, 
+                                    fontSize = 15.sp
+                                )
+                            }
+                        }
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.align(Alignment.CenterVertically)
+                        ) {
+                            Text(
+                                "48",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black,
+                                fontSize = 32.sp
+                            )
+                            Text(
+                                "km/h",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
                         }
                     }
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.align(Alignment.CenterVertically)
+                }
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = WidgetBackground,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { navController.navigate(Screen.Search.route) }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(18.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            "48",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black,
-                            fontSize = 32.sp
-                        )
-                        Text(
-                            "km/h",
-                            color = Color.Gray,
-                            fontSize = 14.sp
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "No Current Journey",
+                                fontWeight = FontWeight.Bold, 
+                                fontSize = 18.sp, 
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "Tap to start navigation", 
+                                color = Color.Gray, 
+                                fontSize = 14.sp
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }

@@ -2,13 +2,15 @@ package com.mhp.cluster.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.google.android.gms.maps.model.LatLng
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.overlay.Polyline
 import java.net.URL
 import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
 
 class NavigationRepository(private val context: Context) {
     
@@ -18,10 +20,11 @@ class NavigationRepository(private val context: Context) {
     private val gson = Gson()
     
     companion object {
-        private const val GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY" // Replace with actual API key
-        private const val DIRECTIONS_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
+        private const val NOMINATIM_API_URL = "https://nominatim.openstreetmap.org/search"
+        private const val OSRM_API_URL = "https://router.project-osrm.org/route/v1"
         private const val KEY_LAST_ROUTE = "last_route"
         private const val KEY_CURRENT_DESTINATION = "current_destination"
+        private const val KEY_SEARCH_RESULTS = "search_results"
     }
     
     data class RouteInfo(
@@ -29,63 +32,241 @@ class NavigationRepository(private val context: Context) {
         val eta: String,
         val distance: String,
         val duration: Int, // in seconds
-        val polyline: String,
-        val startLocation: LatLng,
-        val endLocation: LatLng
+        val polyline: List<GeoPoint>,
+        val startLocation: GeoPoint,
+        val endLocation: GeoPoint
     )
+    
+    data class SearchResult(
+        val displayName: String,
+        val lat: Double,
+        val lon: Double,
+        val type: String
+    )
+    
+    suspend fun searchLocations(query: String): List<SearchResult> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val encodedQuery = URLEncoder.encode(query, "UTF-8")
+                val url = "$NOMINATIM_API_URL?q=$encodedQuery&format=json&limit=10&addressdetails=1"
+                
+                val response = URL(url).readText()
+                val jsonArray = com.google.gson.JsonParser.parseString(response).asJsonArray
+                
+                val results = mutableListOf<SearchResult>()
+                for (i in 0 until jsonArray.size()) {
+                    val item = jsonArray[i].asJsonObject
+                    val displayName = item.get("display_name").asString
+                    val lat = item.get("lat").asString.toDouble()
+                    val lon = item.get("lon").asString.toDouble()
+                    val type = item.get("type").asString
+                    
+                    results.add(SearchResult(displayName, lat, lon, type))
+                }
+                
+                // Cache search results
+                saveSearchResults(results)
+                results
+            } catch (e: Exception) {
+                // Return cached results if available
+                getCachedSearchResults()
+            }
+        }
+    }
+    
+    suspend fun searchLocationsNearby(query: String, currentLat: Double, currentLng: Double): List<SearchResult> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val encodedQuery = URLEncoder.encode(query, "UTF-8")
+                // Add viewbox to prioritize nearby results
+                val viewbox = "${currentLng - 1},${currentLat - 1},${currentLng + 1},${currentLat + 1}"
+                val url = "$NOMINATIM_API_URL?q=$encodedQuery&format=json&limit=10&addressdetails=1&viewbox=$viewbox&bounded=1"
+                
+                val response = URL(url).readText()
+                val jsonArray = com.google.gson.JsonParser.parseString(response).asJsonArray
+                
+                val results = mutableListOf<SearchResult>()
+                for (i in 0 until jsonArray.size()) {
+                    val item = jsonArray[i].asJsonObject
+                    val displayName = item.get("display_name").asString
+                    val lat = item.get("lat").asString.toDouble()
+                    val lon = item.get("lon").asString.toDouble()
+                    val type = item.get("type").asString
+                    
+                    // Calculate distance from current location
+                    val distance = calculateDistance(currentLat, currentLng, lat, lon)
+                    
+                    results.add(SearchResult(displayName, lat, lon, type))
+                }
+                
+                // Sort by distance (closest first)
+                results.sortBy { calculateDistance(currentLat, currentLng, it.lat, it.lon) }
+                
+                // Filter out results that are too far (more than 1000 km)
+                val filteredResults = results.filter { 
+                    calculateDistance(currentLat, currentLng, it.lat, it.lon) <= 1000.0 
+                }
+                
+                // Cache search results
+                saveSearchResults(filteredResults)
+                filteredResults
+            } catch (e: Exception) {
+                android.util.Log.e("NavigationRepository", "Error in nearby search: ${e.message}")
+                // Return cached results if available
+                getCachedSearchResults()
+            }
+        }
+    }
     
     suspend fun getRouteToDestination(
         destination: String,
         startLat: Double = 40.7128,
         startLng: Double = -74.0060
     ): RouteInfo? {
+        // Validate coordinates
+        if (startLat == 0.0 && startLng == 0.0) {
+            android.util.Log.w("NavigationRepository", "Invalid coordinates (0,0), using default")
+            return null
+        }
+        
+        // Validate coordinate bounds
+        if (startLat < -90 || startLat > 90 || startLng < -180 || startLng > 180) {
+            android.util.Log.w("NavigationRepository", "Coordinates out of bounds: lat=$startLat, lng=$startLng")
+            return null
+        }
         return withContext(Dispatchers.IO) {
             try {
-                val origin = "$startLat,$startLng"
-                val encodedDestination = URLEncoder.encode(destination, "UTF-8")
-                val url = "$DIRECTIONS_API_URL?origin=$origin&destination=$encodedDestination&key=$GOOGLE_MAPS_API_KEY"
+                // First, geocode the destination
+                val searchResults = searchLocations(destination)
+                if (searchResults.isEmpty()) {
+                    android.util.Log.d("NavigationRepository", "No search results found for destination: $destination")
+                    return@withContext null
+                }
                 
-                val response = URL(url).readText()
+                val destinationPoint = searchResults[0]
+                
+                // Validate destination coordinates
+                if (destinationPoint.lat < -90 || destinationPoint.lat > 90 || 
+                    destinationPoint.lon < -180 || destinationPoint.lon > 180) {
+                    android.util.Log.w("NavigationRepository", "Destination coordinates out of bounds: lat=${destinationPoint.lat}, lng=${destinationPoint.lon}")
+                    return@withContext null
+                }
+                
+                // Check distance between start and destination
+                val distance = calculateDistance(startLat, startLng, destinationPoint.lat, destinationPoint.lon)
+                if (distance > 1000.0) {
+                    android.util.Log.w("NavigationRepository", "Distance too far: ${distance}km between start and destination")
+                    return@withContext null
+                }
+                
+                // Format coordinates to 6 decimal places to avoid precision issues
+                val origin = String.format("%.6f,%.6f", startLat, startLng)
+                val dest = String.format("%.6f,%.6f", destinationPoint.lat, destinationPoint.lon)
+                
+                android.util.Log.d("NavigationRepository", "Origin: $origin, Destination: $dest")
+                
+                val url = "$OSRM_API_URL/driving/$origin;$dest?overview=full&geometries=geojson"
+                android.util.Log.d("NavigationRepository", "Requesting route from: $url")
+                
+                val connection = URL(url).openConnection() as java.net.HttpURLConnection
+                connection.connectTimeout = 10000 // 10 seconds
+                connection.readTimeout = 10000 // 10 seconds
+                connection.requestMethod = "GET"
+                
+                val responseCode = connection.responseCode
+                if (responseCode != 200) {
+                    // Read error response for debugging
+                    val errorResponse = try {
+                        connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "No error details"
+                    } catch (e: Exception) {
+                        "Error reading error response: ${e.message}"
+                    }
+                    android.util.Log.e("NavigationRepository", "HTTP error: $responseCode, Response: $errorResponse")
+                    return@withContext null
+                }
+                
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                android.util.Log.d("NavigationRepository", "Route response: $response")
                 val jsonObject = com.google.gson.JsonParser.parseString(response).asJsonObject
                 
-                if (jsonObject.get("status").asString == "OK") {
+                if (jsonObject.get("code").asString == "Ok") {
                     val routes = jsonObject.getAsJsonArray("routes")
                     if (routes.size() > 0) {
                         val route = routes[0].asJsonObject
-                        val legs = route.getAsJsonArray("legs")
-                        val leg = legs[0].asJsonObject
+                        val distance = route.get("distance").asDouble
+                        val duration = route.get("duration").asDouble
                         
-                        val distance = leg.get("distance").asJsonObject.get("text").asString
-                        val duration = leg.get("duration").asJsonObject.get("value").asInt
-                        val eta = leg.get("duration").asJsonObject.get("text").asString
+                        // Parse geometry for polyline
+                        val geometry = route.getAsJsonObject("geometry")
+                        val coordinates = geometry.getAsJsonArray("coordinates")
+                        val polyline = mutableListOf<GeoPoint>()
+                        
+                        for (i in 0 until coordinates.size()) {
+                            val coord = coordinates[i].asJsonArray
+                            val lon = coord[0].asDouble
+                            val lat = coord[1].asDouble
+                            polyline.add(GeoPoint(lat, lon))
+                        }
                         
                         val routeInfo = RouteInfo(
                             destination = destination,
-                            eta = eta,
-                            distance = distance,
-                            duration = duration,
-                            polyline = route.get("overview_polyline").asJsonObject.get("points").asString,
-                            startLocation = LatLng(startLat, startLng),
-                            endLocation = LatLng(
-                                leg.get("end_location").asJsonObject.get("lat").asDouble,
-                                leg.get("end_location").asJsonObject.get("lng").asDouble
-                            )
+                            eta = formatDuration(duration.toInt()),
+                            distance = formatDistance(distance),
+                            duration = duration.toInt(),
+                            polyline = polyline,
+                            startLocation = GeoPoint(startLat, startLng),
+                            endLocation = GeoPoint(destinationPoint.lat, destinationPoint.lon)
                         )
+                        
+                        android.util.Log.d("NavigationRepository", "Route calculated successfully: ${routeInfo.eta}, ${routeInfo.distance}")
                         
                         // Save route info
                         saveRouteInfo(routeInfo)
                         
                         routeInfo
                     } else {
+                        android.util.Log.d("NavigationRepository", "No routes found in response")
                         null
                     }
                 } else {
+                    android.util.Log.d("NavigationRepository", "Route calculation failed with code: ${jsonObject.get("code").asString}")
                     null
                 }
             } catch (e: Exception) {
+                android.util.Log.e("NavigationRepository", "Error calculating route: ${e.message}", e)
+                // Create a fallback route when API fails
+                try {
+                    val fallbackRoute = createFallbackRoute(destination, startLat, startLng)
+                    if (fallbackRoute != null) {
+                        android.util.Log.d("NavigationRepository", "Using fallback route")
+                        saveRouteInfo(fallbackRoute)
+                        return@withContext fallbackRoute
+                    }
+                } catch (fallbackException: Exception) {
+                    android.util.Log.e("NavigationRepository", "Fallback route creation failed: ${fallbackException.message}")
+                }
                 // Return cached route or null
                 getCachedRouteInfo()
             }
+        }
+    }
+    
+    private fun formatDuration(seconds: Int): String {
+        val hours = TimeUnit.SECONDS.toHours(seconds.toLong())
+        val minutes = TimeUnit.SECONDS.toMinutes(seconds.toLong()) % 60
+        
+        return when {
+            hours > 0 -> "${hours}h ${minutes}min"
+            else -> "${minutes} min"
+        }
+    }
+    
+    private fun formatDistance(meters: Double): String {
+        val km = meters / 1000
+        return if (km >= 1) {
+            String.format("%.1f km", km)
+        } else {
+            String.format("%.0f m", meters)
         }
     }
     
@@ -97,12 +278,29 @@ class NavigationRepository(private val context: Context) {
             .apply()
     }
     
-    private fun getCachedRouteInfo(): RouteInfo? {
+    fun getCachedRouteInfo(): RouteInfo? {
         val json = sharedPreferences.getString(KEY_LAST_ROUTE, null) ?: return null
         return try {
             gson.fromJson(json, RouteInfo::class.java)
         } catch (e: Exception) {
             null
+        }
+    }
+    
+    private fun saveSearchResults(results: List<SearchResult>) {
+        val json = gson.toJson(results)
+        sharedPreferences.edit()
+            .putString(KEY_SEARCH_RESULTS, json)
+            .apply()
+    }
+    
+    private fun getCachedSearchResults(): List<SearchResult> {
+        val json = sharedPreferences.getString(KEY_SEARCH_RESULTS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<SearchResult>>() {}.type
+            gson.fromJson(json, type)
+        } catch (e: Exception) {
+            emptyList()
         }
     }
     
@@ -123,5 +321,46 @@ class NavigationRepository(private val context: Context) {
         val totalDuration = routeInfo.duration.toLong()
         val elapsedTime = System.currentTimeMillis() / 1000 // Simulate elapsed time
         return (elapsedTime.toFloat() / totalDuration).coerceIn(0f, 1f)
+    }
+    
+    private fun createFallbackRoute(destination: String, startLat: Double, startLng: Double): RouteInfo? {
+        return try {
+            // Create a simple fallback route with estimated values
+            val estimatedDistance = 5000.0 // 5km default
+            val estimatedDuration = 900 // 15 minutes default
+            
+            // Create a more realistic end point (slightly north and east)
+            val endLat = startLat + 0.05 // About 5.5km north
+            val endLng = startLng + 0.05 // About 5.5km east
+            
+            val polyline = listOf(
+                GeoPoint(startLat, startLng),
+                GeoPoint(endLat, endLng)
+            )
+            
+            RouteInfo(
+                destination = destination,
+                eta = formatDuration(estimatedDuration),
+                distance = formatDistance(estimatedDistance),
+                duration = estimatedDuration,
+                polyline = polyline,
+                startLocation = GeoPoint(startLat, startLng),
+                endLocation = GeoPoint(endLat, endLng)
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("NavigationRepository", "Error creating fallback route: ${e.message}")
+            null
+        }
+    }
+    
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val r = 6371.0 // Earth's radius in kilometers
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return r * c
     }
 } 
