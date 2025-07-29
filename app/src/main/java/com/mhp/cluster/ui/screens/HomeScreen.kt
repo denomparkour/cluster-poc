@@ -261,7 +261,7 @@ fun HomeScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(20.dp))
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             val tabs = listOf("Status", "Safety", "Location")
             tabs.forEachIndexed { i, tab ->

@@ -26,23 +26,19 @@ fun NotificationsScreen() {
     var notifications by remember { mutableStateOf(emptyList<NotificationItem>()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     
-    // Load notifications on first composition
     LaunchedEffect(Unit) {
         if (notificationRepository.isFirstLaunch()) {
-            // First launch - add default notifications
             val defaultNotifications = notificationRepository.getDefaultNotifications()
             notificationRepository.saveNotifications(defaultNotifications)
             notificationRepository.setFirstLaunchComplete()
             notifications = defaultNotifications
         } else {
-            // Load existing notifications
             notifications = notificationRepository.getNotifications()
         }
     }
     
     Surface(color = Color(0xFFE5FFF4), modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            // Header with title and delete button
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
