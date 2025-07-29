@@ -21,7 +21,7 @@ sealed class Screen(val route: String) {
 fun AppNavGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Home.route) {
         composable(Screen.Home.route) { HomeScreen(navController) }
-        composable(Screen.Search.route) { SearchScreen() }
+        composable(Screen.Search.route) { SearchScreen(navController) }
         composable(Screen.Profile.route) { ProfileScreen() }
         composable(Screen.Settings.route) { SettingsScreen() }
         composable("notifications") { NotificationsScreen() }
