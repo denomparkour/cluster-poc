@@ -22,7 +22,6 @@ class LocationService private constructor(private val context: Context) {
     
     private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
     
-    // Cache for location data
     private var cachedLocation: Location? = null
     private var lastLocationUpdate: Long = 0
     private val LOCATION_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes

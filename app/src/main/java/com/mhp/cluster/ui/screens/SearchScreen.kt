@@ -44,7 +44,6 @@ fun SearchScreen(navController: NavController) {
             modifier = Modifier.padding(bottom = 24.dp)
         )
         
-        // Current location card
         Surface(
             shape = RoundedCornerShape(12.dp),
             color = Color(0xFFE8F5E8),
@@ -78,7 +77,6 @@ fun SearchScreen(navController: NavController) {
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Destination input
         OutlinedTextField(
             value = destination,
             onValueChange = { destination = it },
@@ -96,12 +94,10 @@ fun SearchScreen(navController: NavController) {
         
         Spacer(modifier = Modifier.height(24.dp))
         
-        // Navigation button
         Button(
             onClick = {
                 if (destination.isNotEmpty()) {
                     isLoading = true
-                    // Use real Google Maps API
                     coroutineScope.launch {
                         try {
                             val routeInfo = navigationRepository.getRouteToDestination(destination)

@@ -64,19 +64,17 @@ fun HomeScreen(navController: NavController) {
     var isWeatherLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     
-    // Location permission launcher
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val locationGranted = permissions.values.all { it }
         if (locationGranted) {
-            // Permission granted, refresh weather data
             coroutineScope.launch {
                 isWeatherLoading = true
                 try {
                     weatherData = weatherRepository.forceRefreshWeather()
                 } catch (e: Exception) {
-                    // Handle error if needed
+                    e.printStackTrace()
                 } finally {
                     isWeatherLoading = false
                 }
@@ -84,18 +82,13 @@ fun HomeScreen(navController: NavController) {
         }
     }
     
-    // Check if location permission is granted
     val hasLocationPermission by remember {
         derivedStateOf { locationService.hasLocationPermission() }
     }
     
-    // Load weather data and navigation info
     LaunchedEffect(Unit) {
-        // Load cached route info if available
         val currentDestination = navigationRepository.getCurrentDestination()
         if (currentDestination != null) {
-            // Try to load cached route info
-            // For now, we'll use demo data
             routeInfo = NavigationRepository.RouteInfo(
                 destination = currentDestination,
                 eta = "9 min",
@@ -107,14 +100,13 @@ fun HomeScreen(navController: NavController) {
             )
         }
         
-        // Auto-load weather on app start if permission is already granted
         if (hasLocationPermission) {
             isWeatherLoading = true
             coroutineScope.launch {
                 try {
                     weatherData = weatherRepository.getCurrentWeather()
                 } catch (e: Exception) {
-                    // Handle error if needed
+                    e.printStackTrace()
                 } finally {
                     isWeatherLoading = false
                 }
@@ -122,19 +114,17 @@ fun HomeScreen(navController: NavController) {
         }
     }
     
-    // Load weather data when location permission changes
     LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission) {
             isWeatherLoading = true
             try {
                 weatherData = weatherRepository.getCurrentWeather()
             } catch (e: Exception) {
-                // Handle error if needed
+                e.printStackTrace()
             } finally {
                 isWeatherLoading = false
             }
         } else {
-            // Clear weather data when permission is revoked
             weatherData = null
             isWeatherLoading = false
         }
@@ -145,13 +135,11 @@ fun HomeScreen(navController: NavController) {
             .background(Color(0xFFE5FFF4))
             .verticalScroll(rememberScrollState())
     ) {
-        // Top section with car info and icons
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(320.dp)
         ) {
-            // Car image
             Image(
                 painter = painterResource(id = R.drawable.porsche_hero),
                 contentDescription = "Porsche Hero",
@@ -161,7 +149,6 @@ fun HomeScreen(navController: NavController) {
                     .height(220.dp),
                 contentScale = ContentScale.Crop
             )
-            // Overlayed info
             Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -171,7 +158,7 @@ fun HomeScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_launcher_foreground), // Replace with battery icon if available
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
                         contentDescription = null,
                         tint = Color.LightGray,
                         modifier = Modifier.size(18.dp)
@@ -180,7 +167,6 @@ fun HomeScreen(navController: NavController) {
                     Text("150 km · Parked", color = Color.Gray, fontSize = 16.sp)
                 }
             }
-            // Weather and notifications icons (top right)
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -192,19 +178,17 @@ fun HomeScreen(navController: NavController) {
                     color = Color(0xFF232323).copy(alpha = 0.7f),
                     modifier = Modifier.clickable { 
                         if (hasLocationPermission) {
-                            // Force refresh weather data (bypass cache)
                             coroutineScope.launch {
                                 isWeatherLoading = true
                                 try {
                                     weatherData = weatherRepository.forceRefreshWeather()
                                 } catch (e: Exception) {
-                                    // Handle error if needed
+                                    e.printStackTrace()
                                 } finally {
                                     isWeatherLoading = false
                                 }
                             }
                         } else {
-                            // Request location permission
                             locationPermissionLauncher.launch(
                                 arrayOf(
                                     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -237,7 +221,7 @@ fun HomeScreen(navController: NavController) {
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_launcher_foreground), // Replace with weather icon if available
+                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
                             contentDescription = if (hasLocationPermission) "Tap to refresh weather" else "Tap to enable location",
                             tint = Color.Yellow,
                             modifier = Modifier.size(18.dp)
@@ -258,7 +242,6 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
             }
-            // Lock icon floating near the car image (upper right)
             Surface(
                 shape = CircleShape,
                 color = Color(0xFF232323).copy(alpha = 0.7f),
@@ -276,7 +259,6 @@ fun HomeScreen(navController: NavController) {
             }
         }
         Spacer(modifier = Modifier.height(20.dp))
-        // Tab row
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -300,12 +282,11 @@ fun HomeScreen(navController: NavController) {
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        // Info cards
         Column(modifier = Modifier.padding(horizontal = 12.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp), // Set fixed height for both cards
+                    .height(150.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 DashboardCard(
@@ -319,7 +300,7 @@ fun HomeScreen(navController: NavController) {
                     },
                     icon = {
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_launcher_foreground), // Replace with battery icon if available
+                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
                             contentDescription = null,
                             tint = Color(0xFF4ADE80),
                             modifier = Modifier.size(28.dp)
@@ -328,7 +309,7 @@ fun HomeScreen(navController: NavController) {
                     modifier = Modifier
                         .weight(1f)
                         .widthIn(max = 180.dp)
-                        .fillMaxHeight() // Make card fill the Row's height
+                        .fillMaxHeight()
                 )
                 DashboardCard(
                     title = "Climate",
@@ -347,7 +328,7 @@ fun HomeScreen(navController: NavController) {
                     },
                     icon = {
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_launcher_foreground), // Replace with fan icon if available
+                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
                             contentDescription = null,
                             tint = Color(0xFF60A5FA),
                             modifier = Modifier.size(28.dp)
@@ -356,11 +337,10 @@ fun HomeScreen(navController: NavController) {
                     modifier = Modifier
                         .weight(1f)
                         .widthIn(max = 180.dp)
-                        .fillMaxHeight() // Make card fill the Row's height
+                        .fillMaxHeight()
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
-            // ETA Card
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = WidgetBackground,
@@ -391,7 +371,7 @@ fun HomeScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_launcher_foreground), // Replace with route icon if available
+                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
                                 contentDescription = null,
                                 tint = Color.Gray,
                                 modifier = Modifier.size(18.dp)
@@ -424,7 +404,6 @@ fun HomeScreen(navController: NavController) {
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            // Playing now card
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFFB8F9DE),
@@ -450,7 +429,6 @@ fun HomeScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Album art centered at top
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = Color(0xFF232323),
@@ -461,7 +439,6 @@ fun HomeScreen(navController: NavController) {
                         
                         Spacer(modifier = Modifier.height(12.dp))
                         
-                        // Song info centered
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -479,7 +456,6 @@ fun HomeScreen(navController: NavController) {
                             
                             Spacer(modifier = Modifier.height(12.dp))
                             
-                            // Media controls centered
                             Row(
                                 horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment = Alignment.CenterVertically,
@@ -526,7 +502,6 @@ fun HomeScreen(navController: NavController) {
                     
                     Spacer(modifier = Modifier.height(12.dp))
                     
-                    // Progress slider
                     Slider(
                         value = currentProgress,
                         onValueChange = { currentProgress = it },
