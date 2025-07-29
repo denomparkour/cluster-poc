@@ -256,7 +256,7 @@ class NavigationRepository(private val context: Context) {
         val minutes = TimeUnit.SECONDS.toMinutes(seconds.toLong()) % 60
         
         return when {
-            hours > 0 -> "${hours}h ${minutes}min"
+            hours > 0 -> "${hours}h ${minutes} min"
             else -> "${minutes} min"
         }
     }
@@ -313,6 +313,24 @@ class NavigationRepository(private val context: Context) {
             .remove(KEY_LAST_ROUTE)
             .remove(KEY_CURRENT_DESTINATION)
             .apply()
+    }
+    
+    suspend fun updateRouteWithCurrentLocation(currentLat: Double, currentLng: Double): RouteInfo? {
+        val currentDestination = getCurrentDestination() ?: return null
+        val cachedRoute = getCachedRouteInfo() ?: return null
+        
+        // Only update if we have a significant location change (more than 100 meters)
+        val distanceFromStart = calculateDistance(
+            currentLat, currentLng,
+            cachedRoute.startLocation.latitude, cachedRoute.startLocation.longitude
+        )
+        
+        if (distanceFromStart < 0.1) { // Less than 100 meters from start
+            return cachedRoute
+        }
+        
+        // Calculate new route from current location to destination
+        return getRouteToDestination(currentDestination, currentLat, currentLng)
     }
     
     // Simulate route progress for demo purposes

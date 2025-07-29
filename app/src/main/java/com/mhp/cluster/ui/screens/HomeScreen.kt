@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -44,14 +45,20 @@ import com.mhp.cluster.data.repository.WeatherRepository
 import com.mhp.cluster.data.repository.NavigationRepository
 import com.mhp.cluster.data.repository.LocationService
 import android.Manifest
+import android.os.Build
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.remember
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import org.osmdroid.util.GeoPoint
 import kotlinx.coroutines.delay
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScreen(navController: NavController) {
     val selectedTab = remember { 0 }
@@ -66,7 +73,16 @@ fun HomeScreen(navController: NavController) {
     var currentProgress by remember { mutableStateOf(0.3f) }
     var isWeatherLoading by remember { mutableStateOf(false) }
     var hasCurrentJourney by remember { mutableStateOf(false) }
+    var isUpdatingRoute by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    
+    // Function to stop current journey
+    fun stopCurrentJourney() {
+        navigationRepository.clearCurrentRoute()
+        hasCurrentJourney = false
+        routeInfo = null
+        isUpdatingRoute = false
+    }
     
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -111,6 +127,27 @@ fun HomeScreen(navController: NavController) {
                     endLocation = GeoPoint(40.7589, -73.9851)
                 )
             }
+            
+            // Try to get real-time update immediately
+            coroutineScope.launch {
+                try {
+                    isUpdatingRoute = true
+                    val currentLocation = locationService.getCurrentLocation()
+                    if (currentLocation != null) {
+                        val updatedRoute = navigationRepository.updateRouteWithCurrentLocation(
+                            currentLocation.latitude,
+                            currentLocation.longitude
+                        )
+                        if (updatedRoute != null) {
+                            routeInfo = updatedRoute
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore errors for initial update
+                } finally {
+                    isUpdatingRoute = false
+                }
+            }
         } else {
             hasCurrentJourney = false
             routeInfo = null
@@ -137,9 +174,63 @@ fun HomeScreen(navController: NavController) {
                 delay(30000) // Update every 30 seconds
                 val currentDestination = navigationRepository.getCurrentDestination()
                 if (currentDestination != null) {
-                    val cachedRoute = navigationRepository.getCachedRouteInfo()
-                    if (cachedRoute != null) {
-                        routeInfo = cachedRoute
+                    // Get current location and update route
+                    val currentLocation = locationService.getCurrentLocation()
+                    if (currentLocation != null) {
+                        try {
+                            val updatedRoute = navigationRepository.updateRouteWithCurrentLocation(
+                                currentLocation.latitude,
+                                currentLocation.longitude
+                            )
+                            if (updatedRoute != null) {
+                                routeInfo = updatedRoute
+                            }
+                        } catch (e: Exception) {
+                            // Fallback to cached route
+                            val cachedRoute = navigationRepository.getCachedRouteInfo()
+                            if (cachedRoute != null) {
+                                routeInfo = cachedRoute
+                            }
+                        }
+                    } else {
+                        // Fallback to cached route if location not available
+                        val cachedRoute = navigationRepository.getCachedRouteInfo()
+                        if (cachedRoute != null) {
+                            routeInfo = cachedRoute
+                        }
+                    }
+                } else {
+                    hasCurrentJourney = false
+                    routeInfo = null
+                    break
+                }
+            }
+        }
+    }
+    
+    // More frequent location updates for active journeys (every 10 seconds)
+    LaunchedEffect(hasCurrentJourney) {
+        if (hasCurrentJourney) {
+            while (true) {
+                delay(10000) // Update every 10 seconds for more responsive updates
+                val currentDestination = navigationRepository.getCurrentDestination()
+                if (currentDestination != null) {
+                    val currentLocation = locationService.getCurrentLocation()
+                    if (currentLocation != null) {
+                        try {
+                            isUpdatingRoute = true
+                            val updatedRoute = navigationRepository.updateRouteWithCurrentLocation(
+                                currentLocation.latitude,
+                                currentLocation.longitude
+                            )
+                            if (updatedRoute != null) {
+                                routeInfo = updatedRoute
+                            }
+                        } catch (e: Exception) {
+                            // Silently fail for frequent updates
+                        } finally {
+                            isUpdatingRoute = false
+                        }
                     }
                 } else {
                     hasCurrentJourney = false
@@ -378,6 +469,15 @@ fun HomeScreen(navController: NavController) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             if (hasCurrentJourney && routeInfo != null) {
+                val etaRaw = routeInfo?.eta ?: ""
+                val etaHours = Regex("(\\d+)h").find(etaRaw)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                val etaMinutes = Regex("(\\d+)\\s*min").find(etaRaw)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+                val arrivalTime = LocalTime.now()
+                    .plusHours(etaHours.toLong())
+                    .plusMinutes(etaMinutes.toLong())
+                    .format(DateTimeFormatter.ofPattern("h:mm a"))
+
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = WidgetBackground,
@@ -385,24 +485,35 @@ fun HomeScreen(navController: NavController) {
                         .fillMaxWidth()
                         .clickable { navController.navigate(Screen.Search.route) }
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(18.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                routeInfo?.eta ?: "9 min", 
-                                fontWeight = FontWeight.Bold, 
-                                fontSize = 22.sp, 
-                                color = Color.Black
-                            )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .padding(18.dp)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    routeInfo?.eta ?: "9 min",
+                                    fontWeight = FontWeight.Bold, 
+                                    fontSize = 22.sp, 
+                                    color = Color.Black
+                                )
+                                if (isUpdatingRoute) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    CircularProgressIndicator(
+                                        color = Color.Gray,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                "9:50 ETA · ${routeInfo?.distance ?: "1.8 mi"}", 
-                                color = Color.Gray, 
+                                "${arrivalTime ?: "9:50 AM"} ETA · ${routeInfo?.distance ?: "1.8 mi"}",
+                                color = Color.Gray,
                                 fontSize = 15.sp
                             )
                             Spacer(modifier = Modifier.height(2.dp))
@@ -421,21 +532,41 @@ fun HomeScreen(navController: NavController) {
                                 )
                             }
                         }
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.align(Alignment.CenterVertically)
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            ) {
+                                Text(
+                                    "48",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black,
+                                    fontSize = 32.sp
+                                )
+                                Text(
+                                    "km/h",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                        
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.8f),
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 8.dp, end = 8.dp)
+                                .size(24.dp)
+                                .clickable { stopCurrentJourney() }
                         ) {
-                            Text(
-                                "48",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black,
-                                fontSize = 32.sp
-                            )
-                            Text(
-                                "km/h",
-                                color = Color.Gray,
-                                fontSize = 14.sp
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Stop journey",
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .size(16.dp)
                             )
                         }
                     }
