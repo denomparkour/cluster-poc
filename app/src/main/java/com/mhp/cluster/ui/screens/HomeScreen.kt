@@ -55,6 +55,8 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.remember
@@ -84,6 +86,9 @@ fun HomeScreen(navController: NavController) {
     var hasCurrentJourney by remember { mutableStateOf(false) }
     var isUpdatingRoute by remember { mutableStateOf(false) }
     var showStockSelectionDialog by remember { mutableStateOf(false) }
+    val animatedSpeed = remember { Animatable(0f) }
+    val vehicleStatus = remember { mutableStateOf("Parked") }
+
     val coroutineScope = rememberCoroutineScope()
 
     // Function to stop current journey
@@ -327,7 +332,7 @@ fun HomeScreen(navController: NavController) {
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("150 km · Parked", color = Color.Gray, fontSize = 16.sp)
+                    Text("150 km · ${vehicleStatus.value}", color = Color.Gray, fontSize = 16.sp)
                 }
             }
             Row(
@@ -520,6 +525,33 @@ fun HomeScreen(navController: NavController) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             if (hasCurrentJourney && routeInfo != null) {
+
+                vehicleStatus.value = "Driving"
+                LaunchedEffect(key1 = hasCurrentJourney) {
+                    if (hasCurrentJourney) {
+                        val targetSpeeds = listOf(10f, 20f, 30f, 48f)
+                        for (speed in targetSpeeds) {
+                            animatedSpeed.animateTo(
+                                targetValue = speed,
+                                animationSpec = tween(durationMillis = 700)
+                            )
+                            delay(500L)
+                        }
+
+                        while (hasCurrentJourney) {
+                            val fluctuation = (40..55).random().toFloat()
+                            animatedSpeed.animateTo(
+                                targetValue = fluctuation,
+                                animationSpec = tween(durationMillis = 500)
+                            )
+                            delay(800L)
+                        }
+                    } else {
+                        animatedSpeed.snapTo(0f)
+                    }
+                }
+
+
                 val etaRaw = routeInfo?.eta ?: ""
                 val etaHours = Regex("(\\d+)h").find(etaRaw)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                 val etaMinutes = Regex("(\\d+)\\s*min").find(etaRaw)?.groupValues?.get(1)?.toIntOrNull() ?: 0
@@ -589,7 +621,7 @@ fun HomeScreen(navController: NavController) {
                                 modifier = Modifier.align(Alignment.CenterVertically)
                             ) {
                                 Text(
-                                    "48",
+                                    animatedSpeed.value.toInt().toString(),
                                     fontWeight = FontWeight.Bold,
                                     color = Color.Black,
                                     fontSize = 32.sp
@@ -623,6 +655,7 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
             } else {
+                vehicleStatus.value = "Parked"
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = WidgetBackground,
