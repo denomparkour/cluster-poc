@@ -63,6 +63,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import coil.compose.AsyncImage
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import org.osmdroid.util.GeoPoint
@@ -743,7 +744,7 @@ fun HomeScreen(navController: NavController) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Playing now",
+                            "Now Playing",
                             color = Color.Black,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -759,24 +760,29 @@ fun HomeScreen(navController: NavController) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = Color(0xFF232323),
-                            modifier = Modifier.size(80.dp)
+                            modifier = Modifier.size(180.dp)
                         ) {
-                            Box(modifier = Modifier.fillMaxSize())
+                            AsyncImage(
+                                model = "https://upload.wikimedia.org/wikipedia/en/thumb/6/6a/UltraviolenceLDR.png/250px-UltraviolenceLDR.png",
+                                contentDescription = "Lana Del Rey Album",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
-                        
+
                         Spacer(modifier = Modifier.height(12.dp))
                         
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                "Virtual Riot",
+                                "West Coast",
                                 color = Color.Black,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                "Seamless (feat. Kevin)",
+                                "Lana Del Rey",
                                 color = Color.Gray,
                                 fontSize = 14.sp
                             )
@@ -850,7 +856,7 @@ fun HomeScreen(navController: NavController) {
                             fontSize = 12.sp
                         )
                         Text(
-                            "3:45",
+                            "4:17",
                             color = Color.Gray,
                             fontSize = 12.sp
                         )
