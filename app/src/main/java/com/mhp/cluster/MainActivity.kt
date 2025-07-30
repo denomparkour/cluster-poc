@@ -19,10 +19,15 @@ import com.mhp.cluster.ui.navigation.AppNavGraph
 import com.mhp.cluster.ui.navigation.FloatyNavBar
 import com.mhp.cluster.ui.theme.ClusterTheme
 import com.mhp.cluster.ui.theme.PageBackground
+import org.osmdroid.config.Configuration
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize OSMDroid configuration
+        Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
+        
         enableEdgeToEdge()
         setContent {
             ClusterTheme {

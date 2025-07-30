@@ -49,6 +49,7 @@ import com.mhp.cluster.data.model.Stock
 import com.mhp.cluster.ui.components.StocksWidget
 import com.mhp.cluster.ui.components.StockSelectionDialog
 import com.mhp.cluster.ui.components.MilestoneWidget
+import com.mhp.cluster.ui.components.LocationMapWidget
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -806,31 +807,6 @@ fun HomeScreen(navController: NavController) {
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // More widgets can be added here
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = WidgetBackground,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "More Widgets Coming Soon",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Color.Gray
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Additional customizable widgets will be available here",
-                            color = Color.Gray,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
             }
         }
         
@@ -844,29 +820,11 @@ fun HomeScreen(navController: NavController) {
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = WidgetBackground,
+                
+                // Location Map Widget
+                LocationMapWidget(
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "Location Services",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Color.Gray
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Location-based features will be available here",
-                            color = Color.Gray,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
+                )
             }
         }
     }
