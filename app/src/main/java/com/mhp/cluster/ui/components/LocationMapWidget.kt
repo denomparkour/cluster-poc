@@ -41,7 +41,7 @@ fun LocationMapWidget(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Header
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -71,8 +71,7 @@ fun LocationMapWidget(
             }
             
             Spacer(modifier = Modifier.height(12.dp))
-            
-            // Real Map
+
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
@@ -85,12 +84,10 @@ fun LocationMapWidget(
                             setTileSource(TileSourceFactory.MAPNIK)
                             setMultiTouchControls(true)
                             isTilesScaledToDpi = true
-                            
-                            // Set the map center to the random location
+
                             controller.setCenter(randomLocation.coordinates)
                             controller.setZoom(15.0)
-                            
-                            // Add a marker for the location
+
                             val marker = Marker(this).apply {
                                 position = randomLocation.coordinates
                                 title = randomLocation.name
@@ -106,8 +103,7 @@ fun LocationMapWidget(
             }
             
             Spacer(modifier = Modifier.height(12.dp))
-            
-            // Location details
+
             Column {
                 Text(
                     text = randomLocation.name,

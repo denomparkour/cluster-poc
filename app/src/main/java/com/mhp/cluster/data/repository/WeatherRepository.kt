@@ -14,8 +14,7 @@ class WeatherRepository private constructor(private val context: Context) {
         "weather_prefs", Context.MODE_PRIVATE
     )
     private val locationService = LocationService.getInstance(context)
-    
-    // In-memory cache for weather data
+
     private var cachedWeatherData: WeatherData? = null
     private var lastWeatherUpdate: Long = 0
     private val WEATHER_CACHE_DURATION = 10 * 60 * 1000 // 10 minutes
@@ -47,7 +46,7 @@ class WeatherRepository private constructor(private val context: Context) {
     suspend fun getCurrentWeather(): WeatherData? {
         return withContext(Dispatchers.IO) {
             try {
-                // Check in-memory cache first
+
                 val currentTime = System.currentTimeMillis()
                 if (cachedWeatherData != null && 
                     (currentTime - lastWeatherUpdate) < WEATHER_CACHE_DURATION) {
@@ -56,14 +55,12 @@ class WeatherRepository private constructor(private val context: Context) {
                 } else {
                     Log.d("WeatherRepository", "CACHE MISS: Cache expired or empty, fetching fresh data")
                 }
-                
-                // Check if we have location permission
+
                 if (!locationService.hasLocationPermission()) {
                     Log.d("WeatherRepository", "No location permission")
                     return@withContext null
                 }
-                
-                // Get current location
+
                 Log.d("WeatherRepository", "Getting current location...")
                 val location = locationService.getCurrentLocation() ?: locationService.getLastKnownLocation()
                 if (location == null) {
@@ -90,18 +87,16 @@ class WeatherRepository private constructor(private val context: Context) {
                 )
 
                 Log.d("WeatherRepository", "Weather data received: ${weatherData.temperature}°C, ${weatherData.description}")
-                
-                // Update in-memory cache
+
                 cachedWeatherData = weatherData
                 lastWeatherUpdate = currentTime
-                
-                // Save to SharedPreferences
+
                 saveWeatherData(weatherData)
                 
                 weatherData
             } catch (e: Exception) {
                 Log.e("WeatherRepository", "Error getting weather: ${e.message}", e)
-                // Return cached data or null
+
                 getCachedWeatherData()
             }
         }
@@ -125,8 +120,7 @@ class WeatherRepository private constructor(private val context: Context) {
     private fun getCachedWeatherData(): WeatherData? {
         val jsonString = sharedPreferences.getString(KEY_LAST_WEATHER, null) ?: return null
         val lastUpdate = sharedPreferences.getLong(KEY_LAST_UPDATE, 0)
-        
-        // Check if data is less than 30 minutes old
+
         if (System.currentTimeMillis() - lastUpdate > 30 * 60 * 1000) {
             return null
         }

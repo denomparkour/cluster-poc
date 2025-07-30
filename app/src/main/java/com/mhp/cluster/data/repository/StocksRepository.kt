@@ -40,8 +40,7 @@ class StocksRepository(private val context: Context) {
     }
     
     private val apiKey = "XDZ4NS2Y7KPNA86C"
-    
-    // Default popular stocks to show when no stocks are selected
+
     private val defaultStocks = listOf("AAPL", "GOOGL", "MSFT", "AMZN", "TSLA")
     
     suspend fun getSelectedStocks(): List<Stock> = withContext(Dispatchers.IO) {
@@ -52,9 +51,8 @@ class StocksRepository(private val context: Context) {
             println("Fetching stocks for symbols: $symbolsToFetch")
             
             val stocks = mutableListOf<Stock>()
-            
-            // Alpha Vantage doesn't support batch quotes, so we need to make individual calls
-            // Note: Alpha Vantage has rate limits (5 calls per minute for free tier)
+
+
             symbolsToFetch.forEach { symbol ->
                 try {
                     val response = apiService.getStockQuote(symbol = symbol, apiKey = apiKey)
@@ -77,18 +75,17 @@ class StocksRepository(private val context: Context) {
                         println("Successfully loaded stock: ${stock.symbol}")
                     } else {
                         println("API error for $symbol: ${response.errorMessage}")
-                        // If API call fails, add mock data as fallback
+
                         stocks.add(getMockStockData(symbol))
                     }
-                    
-                    // Add delay to respect rate limits (5 calls per minute = 12 seconds between calls)
+
                     if (symbolsToFetch.size > 1) {
                         delay(1200) // 1.2 seconds delay between calls
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
                     println("Exception for $symbol: ${e.message}")
-                    // If API call fails, add mock data as fallback
+
                     stocks.add(getMockStockData(symbol))
                 }
             }
@@ -98,7 +95,7 @@ class StocksRepository(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
             println("General exception in getSelectedStocks: ${e.message}")
-            // Return default stocks instead of empty list
+
             defaultStocks.map { getMockStockData(it) }
         }
     }
@@ -108,8 +105,7 @@ class StocksRepository(private val context: Context) {
             if (query.length < 2) return@withContext emptyList()
             
             println("Searching stocks for query: '$query' with API key: ${apiKey.take(5)}...")
-            
-            // Test the API with a simple query first to verify it's working
+
             try {
                 val testResponse = apiService.searchStocks(keywords = "AAPL", apiKey = apiKey)
                 println("Test API call for AAPL: bestMatches=${testResponse.bestMatches?.size}, errorMessage=${testResponse.errorMessage}, note=${testResponse.note}")
@@ -120,13 +116,11 @@ class StocksRepository(private val context: Context) {
             val response = apiService.searchStocks(keywords = query, apiKey = apiKey)
             
             println("Search response: bestMatches=${response.bestMatches?.size}, errorMessage=${response.errorMessage}, note=${response.note}")
-            
-            // Log the full response for debugging
+
             if (response.bestMatches != null) {
                 println("Best matches found: ${response.bestMatches.map { "${it.symbol} (${it.name})" }}")
             }
-            
-            // Check if we hit rate limit
+
             if (response.note?.contains("API call frequency") == true || response.note?.contains("limit") == true) {
                 println("Rate limit hit, using fallback data")
                 return@withContext getFallbackSearchResults(query)

@@ -59,7 +59,6 @@ data class StockSearchResult(
     val matchScore: Double
 )
 
-// Alpha Vantage API Response Models
 data class AlphaVantageQuoteResponse(
     @SerializedName("Global Quote")
     val globalQuote: AlphaVantageQuote?,

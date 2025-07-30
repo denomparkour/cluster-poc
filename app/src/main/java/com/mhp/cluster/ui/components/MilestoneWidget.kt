@@ -34,7 +34,7 @@ fun MilestoneWidget(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left side - Emoji and icon
+
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.weight(0.3f)
@@ -53,8 +53,7 @@ fun MilestoneWidget(
             }
             
             Spacer(modifier = Modifier.width(16.dp))
-            
-            // Right side - Text content
+
             Column(
                 modifier = Modifier.weight(0.7f)
             ) {
@@ -130,7 +129,7 @@ fun MilestoneWidgetWithAnimation(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left side - Emoji and icon with animation
+
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.weight(0.3f)
@@ -149,8 +148,7 @@ fun MilestoneWidgetWithAnimation(
             }
             
             Spacer(modifier = Modifier.width(16.dp))
-            
-            // Right side - Text content
+
             Column(
                 modifier = Modifier.weight(0.7f)
             ) {

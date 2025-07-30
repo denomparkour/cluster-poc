@@ -48,7 +48,7 @@ fun SearchScreen(navController: NavController) {
     ) { permissions ->
         val locationGranted = permissions.values.all { it }
         if (locationGranted) {
-            // Permission granted, proceed with route calculation
+
             coroutineScope.launch {
                 selectedLocation?.let { location ->
                     isLoading = true
@@ -73,7 +73,7 @@ fun SearchScreen(navController: NavController) {
                                 }
                             } else {
                                 android.util.Log.d("SearchScreen", "Route calculation failed, using fallback")
-                                // Route calculation failed, use fallback
+
                                 eta = "15 min"
                                 distance = "8.5 km"
                                 isNavigating = true
@@ -83,7 +83,7 @@ fun SearchScreen(navController: NavController) {
                             }
                         } else {
                             android.util.Log.d("SearchScreen", "No current location, using fallback")
-                            // No current location, use fallback
+
                             eta = "15 min"
                             distance = "8.5 km"
                             isNavigating = true
@@ -93,7 +93,7 @@ fun SearchScreen(navController: NavController) {
                         }
                     } catch (e: Exception) {
                         android.util.Log.e("SearchScreen", "Error in route calculation after permission: ${e.message}", e)
-                        // Fallback to demo data
+
                         eta = "15 min"
                         distance = "8.5 km"
                         isNavigating = true
@@ -114,10 +114,10 @@ fun SearchScreen(navController: NavController) {
                 try {
                     val currentLocation = locationService.getCurrentLocation()
                     val results = if (currentLocation != null) {
-                        // Use nearby search if we have current location
+
                         navigationRepository.searchLocationsNearby(destination, currentLocation.latitude, currentLocation.longitude)
                     } else {
-                        // Fall back to regular search if no location
+
                         navigationRepository.searchLocations(destination)
                     }
                     searchResults = results
@@ -196,8 +196,7 @@ fun SearchScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp)
         )
-        
-        // Search Results
+
         if (showSearchResults && searchResults.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             LazyColumn(
@@ -271,13 +270,13 @@ fun SearchScreen(navController: NavController) {
                                         eta = routeInfo.eta
                                         distance = routeInfo.distance
                                         isNavigating = true
-                                        // Navigate to home screen
+
                                         navController.navigate("home") {
                                             popUpTo("home") { inclusive = true }
                                         }
                                     } else {
                                         android.util.Log.d("SearchScreen", "Route calculation failed, using fallback")
-                                        // Route calculation failed, use fallback
+
                                         eta = "15 min"
                                         distance = "8.5 km"
                                         isNavigating = true
@@ -287,7 +286,7 @@ fun SearchScreen(navController: NavController) {
                                     }
                                 } else {
                                     android.util.Log.d("SearchScreen", "No current location, using fallback")
-                                    // No current location, use fallback
+
                                     eta = "15 min"
                                     distance = "8.5 km"
                                     isNavigating = true
@@ -297,7 +296,7 @@ fun SearchScreen(navController: NavController) {
                                 }
                             } catch (e: Exception) {
                                 android.util.Log.e("SearchScreen", "Error in route calculation: ${e.message}", e)
-                                // Fallback to demo data
+
                                 eta = "15 min"
                                 distance = "8.5 km"
                                 isNavigating = true
@@ -309,7 +308,7 @@ fun SearchScreen(navController: NavController) {
                             }
                         }
                     } else {
-                        // Request location permission
+
                         locationPermissionLauncher.launch(
                             arrayOf(
                                 Manifest.permission.ACCESS_FINE_LOCATION,

@@ -71,8 +71,7 @@ class LocationService private constructor(private val context: Context) {
             Log.d("LocationService", "No location permission")
             return null
         }
-        
-        // Check cache first
+
         getCachedLocation()?.let { return it }
         
         return try {
@@ -110,8 +109,7 @@ class LocationService private constructor(private val context: Context) {
             Log.d("LocationService", "No location permission for last known location")
             return null
         }
-        
-        // Check cache first
+
         getCachedLocation()?.let { return it }
         
         return try {

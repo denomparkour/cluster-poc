@@ -95,7 +95,6 @@ fun HomeScreen(navController: NavController) {
     val currentWeather = remember { mutableIntStateOf(30) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Function to stop current journey
     fun stopCurrentJourney() {
         navigationRepository.clearCurrentRoute()
         hasCurrentJourney = false
@@ -124,8 +123,7 @@ fun HomeScreen(navController: NavController) {
         val hasLocationPermission by remember {
         derivedStateOf { locationService.hasLocationPermission() }
     }
-    
-    // Function to load stocks with better error handling
+
     fun loadStocks() {
         isStocksLoading = true
         coroutineScope.launch {
@@ -135,7 +133,7 @@ fun HomeScreen(navController: NavController) {
                 println("Loaded ${loadedStocks.size} stocks: ${loadedStocks.map { it.symbol }}")
             } catch (e: Exception) {
                 e.printStackTrace()
-                // Fallback to mock data if API fails
+
                 stocks = listOf(
                     Stock("AAPL", "Apple Inc.", 175.43, 2.15, 1.24, 1234567890, 2800000000000, 28.5, 0.92, 0.52),
                     Stock("GOOGL", "Alphabet Inc.", 142.56, -1.23, -0.85, 987654321, 1800000000000, 25.2, 0.00, 0.00),
@@ -147,18 +145,17 @@ fun HomeScreen(navController: NavController) {
             }
         }
     }
-    
-    // Check for current journey and update ETA in real-time
+
     LaunchedEffect(Unit) {
         val currentDestination = navigationRepository.getCurrentDestination()
         if (currentDestination != null) {
             hasCurrentJourney = true
-            // Get cached route info
+
             val cachedRoute = navigationRepository.getCachedRouteInfo()
             if (cachedRoute != null) {
                 routeInfo = cachedRoute
             } else {
-                // Fallback to demo data
+
                 routeInfo = NavigationRepository.RouteInfo(
                     destination = currentDestination,
                     eta = "9 min",
@@ -170,7 +167,6 @@ fun HomeScreen(navController: NavController) {
                 )
             }
 
-            // Try to get real-time update immediately
             coroutineScope.launch {
                 try {
                     isUpdatingRoute = true
@@ -185,7 +181,7 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 } catch (e: Exception) {
-                    // Ignore errors for initial update
+
                 } finally {
                     isUpdatingRoute = false
                 }
@@ -208,18 +204,16 @@ fun HomeScreen(navController: NavController) {
             }
         }
 
-        // Load stocks data
         loadStocks()
     }
-    
-    // Real-time ETA updates
+
     LaunchedEffect(hasCurrentJourney) {
         if (hasCurrentJourney) {
             while (true) {
                 delay(30000) // Update every 30 seconds
                 val currentDestination = navigationRepository.getCurrentDestination()
                 if (currentDestination != null) {
-                    // Get current location and update route
+
                     val currentLocation = locationService.getCurrentLocation()
                     if (currentLocation != null) {
                         try {
@@ -231,14 +225,14 @@ fun HomeScreen(navController: NavController) {
                                 routeInfo = updatedRoute
                             }
                         } catch (e: Exception) {
-                            // Fallback to cached route
+
                             val cachedRoute = navigationRepository.getCachedRouteInfo()
                             if (cachedRoute != null) {
                                 routeInfo = cachedRoute
                             }
                         }
                     } else {
-                        // Fallback to cached route if location not available
+
                         val cachedRoute = navigationRepository.getCachedRouteInfo()
                         if (cachedRoute != null) {
                             routeInfo = cachedRoute
@@ -252,8 +246,7 @@ fun HomeScreen(navController: NavController) {
             }
         }
     }
-    
-    // More frequent location updates for active journeys (every 10 seconds)
+
     LaunchedEffect(hasCurrentJourney) {
         if (hasCurrentJourney) {
             while (true) {
@@ -272,7 +265,7 @@ fun HomeScreen(navController: NavController) {
                                 routeInfo = updatedRoute
                             }
                         } catch (e: Exception) {
-                            // Silently fail for frequent updates
+
                         } finally {
                             isUpdatingRoute = false
                         }
@@ -466,8 +459,7 @@ fun HomeScreen(navController: NavController) {
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        
-        // Status Section (Tab 0)
+
         if (selectedTab == 0) {
             Column(modifier = Modifier.padding(horizontal = 12.dp)) {
             Row(
@@ -876,8 +868,7 @@ fun HomeScreen(navController: NavController) {
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Stocks Widget
+
                 StocksWidget(
                     stocks = stocks,
                     isLoading = isStocksLoading,
@@ -887,8 +878,7 @@ fun HomeScreen(navController: NavController) {
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Milestone Widget
+
                 MilestoneWidget(
                     milestone = "2500",
                     unit = "Kms",
@@ -911,23 +901,21 @@ fun HomeScreen(navController: NavController) {
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Location Map Widget
+
                 LocationMapWidget(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
     }
-    
-    // Stock Selection Dialog
+
     if (showStockSelectionDialog) {
         StockSelectionDialog(
             onDismiss = { showStockSelectionDialog = false },
             onStocksSelected = { selectedSymbols ->
                 stocksRepository.saveSelectedStocks(selectedSymbols)
                 println("Stocks selected: $selectedSymbols")
-                // Reload stocks after selection
+
                 loadStocks()
             },
             searchStocks = { query -> stocksRepository.searchStocks(query) },

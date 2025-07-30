@@ -63,12 +63,11 @@ class NavigationRepository(private val context: Context) {
                     
                     results.add(SearchResult(displayName, lat, lon, type))
                 }
-                
-                // Cache search results
+
                 saveSearchResults(results)
                 results
             } catch (e: Exception) {
-                // Return cached results if available
+
                 getCachedSearchResults()
             }
         }
@@ -78,7 +77,7 @@ class NavigationRepository(private val context: Context) {
         return withContext(Dispatchers.IO) {
             try {
                 val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                // Add viewbox to prioritize nearby results
+
                 val viewbox = "${currentLng - 1},${currentLat - 1},${currentLng + 1},${currentLat + 1}"
                 val url = "$NOMINATIM_API_URL?q=$encodedQuery&format=json&limit=10&addressdetails=1&viewbox=$viewbox&bounded=1"
                 
@@ -92,27 +91,23 @@ class NavigationRepository(private val context: Context) {
                     val lat = item.get("lat").asString.toDouble()
                     val lon = item.get("lon").asString.toDouble()
                     val type = item.get("type").asString
-                    
-                    // Calculate distance from current location
+
                     val distance = calculateDistance(currentLat, currentLng, lat, lon)
                     
                     results.add(SearchResult(displayName, lat, lon, type))
                 }
-                
-                // Sort by distance (closest first)
+
                 results.sortBy { calculateDistance(currentLat, currentLng, it.lat, it.lon) }
-                
-                // Filter out results that are too far (more than 1000 km)
+
                 val filteredResults = results.filter { 
                     calculateDistance(currentLat, currentLng, it.lat, it.lon) <= 1000.0 
                 }
-                
-                // Cache search results
+
                 saveSearchResults(filteredResults)
                 filteredResults
             } catch (e: Exception) {
                 android.util.Log.e("NavigationRepository", "Error in nearby search: ${e.message}")
-                // Return cached results if available
+
                 getCachedSearchResults()
             }
         }
@@ -123,20 +118,19 @@ class NavigationRepository(private val context: Context) {
         startLat: Double = 40.7128,
         startLng: Double = -74.0060
     ): RouteInfo? {
-        // Validate coordinates
+
         if (startLat == 0.0 && startLng == 0.0) {
             android.util.Log.w("NavigationRepository", "Invalid coordinates (0,0), using default")
             return null
         }
-        
-        // Validate coordinate bounds
+
         if (startLat < -90 || startLat > 90 || startLng < -180 || startLng > 180) {
             android.util.Log.w("NavigationRepository", "Coordinates out of bounds: lat=$startLat, lng=$startLng")
             return null
         }
         return withContext(Dispatchers.IO) {
             try {
-                // First, geocode the destination
+
                 val searchResults = searchLocations(destination)
                 if (searchResults.isEmpty()) {
                     android.util.Log.d("NavigationRepository", "No search results found for destination: $destination")
@@ -144,22 +138,19 @@ class NavigationRepository(private val context: Context) {
                 }
                 
                 val destinationPoint = searchResults[0]
-                
-                // Validate destination coordinates
+
                 if (destinationPoint.lat < -90 || destinationPoint.lat > 90 || 
                     destinationPoint.lon < -180 || destinationPoint.lon > 180) {
                     android.util.Log.w("NavigationRepository", "Destination coordinates out of bounds: lat=${destinationPoint.lat}, lng=${destinationPoint.lon}")
                     return@withContext null
                 }
-                
-                // Check distance between start and destination
+
                 val distance = calculateDistance(startLat, startLng, destinationPoint.lat, destinationPoint.lon)
                 if (distance > 1000.0) {
                     android.util.Log.w("NavigationRepository", "Distance too far: ${distance}km between start and destination")
                     return@withContext null
                 }
-                
-                // Format coordinates to 6 decimal places to avoid precision issues
+
                 val origin = String.format("%.6f,%.6f", startLat, startLng)
                 val dest = String.format("%.6f,%.6f", destinationPoint.lat, destinationPoint.lon)
                 
@@ -175,7 +166,7 @@ class NavigationRepository(private val context: Context) {
                 
                 val responseCode = connection.responseCode
                 if (responseCode != 200) {
-                    // Read error response for debugging
+
                     val errorResponse = try {
                         connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "No error details"
                     } catch (e: Exception) {
@@ -195,8 +186,7 @@ class NavigationRepository(private val context: Context) {
                         val route = routes[0].asJsonObject
                         val distance = route.get("distance").asDouble
                         val duration = route.get("duration").asDouble
-                        
-                        // Parse geometry for polyline
+
                         val geometry = route.getAsJsonObject("geometry")
                         val coordinates = geometry.getAsJsonArray("coordinates")
                         val polyline = mutableListOf<GeoPoint>()
@@ -219,8 +209,7 @@ class NavigationRepository(private val context: Context) {
                         )
                         
                         android.util.Log.d("NavigationRepository", "Route calculated successfully: ${routeInfo.eta}, ${routeInfo.distance}")
-                        
-                        // Save route info
+
                         saveRouteInfo(routeInfo)
                         
                         routeInfo
@@ -234,7 +223,7 @@ class NavigationRepository(private val context: Context) {
                 }
             } catch (e: Exception) {
                 android.util.Log.e("NavigationRepository", "Error calculating route: ${e.message}", e)
-                // Create a fallback route when API fails
+
                 try {
                     val fallbackRoute = createFallbackRoute(destination, startLat, startLng)
                     if (fallbackRoute != null) {
@@ -245,7 +234,7 @@ class NavigationRepository(private val context: Context) {
                 } catch (fallbackException: Exception) {
                     android.util.Log.e("NavigationRepository", "Fallback route creation failed: ${fallbackException.message}")
                 }
-                // Return cached route or null
+
                 getCachedRouteInfo()
             }
         }
@@ -318,8 +307,7 @@ class NavigationRepository(private val context: Context) {
     suspend fun updateRouteWithCurrentLocation(currentLat: Double, currentLng: Double): RouteInfo? {
         val currentDestination = getCurrentDestination() ?: return null
         val cachedRoute = getCachedRouteInfo() ?: return null
-        
-        // Only update if we have a significant location change (more than 100 meters)
+
         val distanceFromStart = calculateDistance(
             currentLat, currentLng,
             cachedRoute.startLocation.latitude, cachedRoute.startLocation.longitude
@@ -328,12 +316,10 @@ class NavigationRepository(private val context: Context) {
         if (distanceFromStart < 0.1) { // Less than 100 meters from start
             return cachedRoute
         }
-        
-        // Calculate new route from current location to destination
+
         return getRouteToDestination(currentDestination, currentLat, currentLng)
     }
-    
-    // Simulate route progress for demo purposes
+
     fun getRouteProgress(): Float {
         val routeInfo = getCachedRouteInfo() ?: return 0f
         val totalDuration = routeInfo.duration.toLong()
@@ -343,11 +329,10 @@ class NavigationRepository(private val context: Context) {
     
     private fun createFallbackRoute(destination: String, startLat: Double, startLng: Double): RouteInfo? {
         return try {
-            // Create a simple fallback route with estimated values
+
             val estimatedDistance = 5000.0 // 5km default
             val estimatedDuration = 900 // 15 minutes default
-            
-            // Create a more realistic end point (slightly north and east)
+
             val endLat = startLat + 0.05 // About 5.5km north
             val endLng = startLng + 0.05 // About 5.5km east
             

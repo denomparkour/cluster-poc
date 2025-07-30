@@ -49,20 +49,18 @@ fun NotificationsScreen() {
                     fontWeight = FontWeight.Bold, 
                     fontSize = 24.sp
                 )
-                
-//                if (notifications.isNotEmpty()) {
-//                    Button(
-//                        onClick = { showDeleteDialog = true },
-//                        colors = ButtonDefaults.buttonColors(
-//                            containerColor = Color(0xFFFF6B6B)
-//                        )
-//                    ) {
-//                        Text("Delete All", color = Color.White)
-//                    }
-//                }
+
+
+
+
+
+
+
+
+
+
             }
-            
-            // Notifications list
+
             if (notifications.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -111,8 +109,7 @@ fun NotificationsScreen() {
             }
         }
     }
-    
-    // Delete confirmation dialog
+
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },

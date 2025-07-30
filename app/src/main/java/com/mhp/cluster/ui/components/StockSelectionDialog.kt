@@ -42,8 +42,7 @@ fun StockSelectionDialog(
     var selectedStocks by remember { mutableStateOf(getSelectedStocks()) }
     
     val coroutineScope = rememberCoroutineScope()
-    
-    // Debounced search
+
     LaunchedEffect(searchQuery) {
         if (searchQuery.length >= 2) {
             delay(300) // Debounce for 300ms
@@ -77,7 +76,7 @@ fun StockSelectionDialog(
             Column(
                 modifier = Modifier.padding(20.dp)
             ) {
-                // Header
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -99,8 +98,7 @@ fun StockSelectionDialog(
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Search bar
+
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -121,8 +119,7 @@ fun StockSelectionDialog(
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Selected stocks section
+
                 if (selectedStocks.isNotEmpty()) {
                     Text(
                         "Selected Stocks (${selectedStocks.size}/5)",
@@ -148,8 +145,7 @@ fun StockSelectionDialog(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
-                
-                // Search results
+
                 if (searchQuery.isNotEmpty()) {
                     Text(
                         "Search Results",
@@ -197,7 +193,7 @@ fun StockSelectionDialog(
                         }
                     }
                 } else {
-                    // Popular stocks suggestions
+
                     Text(
                         "Popular Stocks",
                         fontWeight = FontWeight.Bold,
@@ -234,8 +230,7 @@ fun StockSelectionDialog(
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Save button
+
                 Button(
                     onClick = {
                         onStocksSelected(selectedStocks)

@@ -63,13 +63,11 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.play.services.location)
-    
-    // OSMDroid for offline maps
+
     implementation(libs.osmdroid.android)
     implementation(libs.osmdroid.wms)
     implementation(libs.osmdroid.mapsforge)
-    
-    // Retrofit for API calls
+
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp)
