@@ -22,7 +22,7 @@ class StocksRepository(private val context: Context) {
     
     private val apiService: StockApiService by lazy {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = HttpLoggingInterceptor.Level.BODY // Changed to BODY for full request/response logging
         }
         
         val client = OkHttpClient.Builder()
@@ -107,13 +107,27 @@ class StocksRepository(private val context: Context) {
         try {
             if (query.length < 2) return@withContext emptyList()
             
-            println("Searching stocks for query: '$query'")
+            println("Searching stocks for query: '$query' with API key: ${apiKey.take(5)}...")
+            
+            // Test the API with a simple query first to verify it's working
+            try {
+                val testResponse = apiService.searchStocks(keywords = "AAPL", apiKey = apiKey)
+                println("Test API call for AAPL: bestMatches=${testResponse.bestMatches?.size}, errorMessage=${testResponse.errorMessage}, note=${testResponse.note}")
+            } catch (e: Exception) {
+                println("Test API call failed: ${e.message}")
+            }
+            
             val response = apiService.searchStocks(keywords = query, apiKey = apiKey)
             
             println("Search response: bestMatches=${response.bestMatches?.size}, errorMessage=${response.errorMessage}, note=${response.note}")
             
+            // Log the full response for debugging
+            if (response.bestMatches != null) {
+                println("Best matches found: ${response.bestMatches.map { "${it.symbol} (${it.name})" }}")
+            }
+            
             // Check if we hit rate limit
-            if (response.note?.contains("API call frequency") == true) {
+            if (response.note?.contains("API call frequency") == true || response.note?.contains("limit") == true) {
                 println("Rate limit hit, using fallback data")
                 return@withContext getFallbackSearchResults(query)
             }
@@ -136,12 +150,13 @@ class StocksRepository(private val context: Context) {
                 results
             } else {
                 println("API search failed: ${response.errorMessage ?: "Unknown error"}")
-                // If API call fails, return mock data as fallback
+                println("Full response note: ${response.note}")
                 getFallbackSearchResults(query)
             }
         } catch (e: Exception) {
             e.printStackTrace()
             println("Exception in searchStocks: ${e.message}")
+            println("Exception type: ${e.javaClass.simpleName}")
             getFallbackSearchResults(query)
         }
     }
