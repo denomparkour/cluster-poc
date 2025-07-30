@@ -44,9 +44,12 @@ import com.mhp.cluster.ui.navigation.Screen
 import com.mhp.cluster.data.repository.WeatherRepository
 import com.mhp.cluster.data.repository.NavigationRepository
 import com.mhp.cluster.data.repository.LocationService
+import com.mhp.cluster.data.repository.StocksRepository
+import com.mhp.cluster.data.model.Stock
+import com.mhp.cluster.ui.components.StocksWidget
+import com.mhp.cluster.ui.components.StockSelectionDialog
 import android.Manifest
 import android.os.Build
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -61,19 +64,24 @@ import kotlinx.coroutines.delay
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScreen(navController: NavController) {
-    val selectedTab = remember { 0 }
+    var selectedTab by remember { mutableStateOf(0) }
+    val scrollState = rememberScrollState()
     var isLocked by remember { mutableStateOf(true) }
     val context = LocalContext.current
     val weatherRepository = remember { WeatherRepository.getInstance(context) }
     val navigationRepository = remember { NavigationRepository(context) }
     val locationService = remember { LocationService.getInstance(context) }
+    val stocksRepository = remember { StocksRepository.getInstance(context) }
     var weatherData by remember { mutableStateOf<WeatherRepository.WeatherData?>(null) }
     var routeInfo by remember { mutableStateOf<NavigationRepository.RouteInfo?>(null) }
+    var stocks by remember { mutableStateOf<List<Stock>>(emptyList()) }
     var isPlaying by remember { mutableStateOf(true) }
     var currentProgress by remember { mutableStateOf(0.3f) }
     var isWeatherLoading by remember { mutableStateOf(false) }
+    var isStocksLoading by remember { mutableStateOf(false) }
     var hasCurrentJourney by remember { mutableStateOf(false) }
     var isUpdatingRoute by remember { mutableStateOf(false) }
+    var showStockSelectionDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     
     // Function to stop current journey
@@ -163,6 +171,18 @@ fun HomeScreen(navController: NavController) {
                 } finally {
                     isWeatherLoading = false
                 }
+            }
+        }
+        
+        // Load stocks data
+        isStocksLoading = true
+        coroutineScope.launch {
+            try {
+                stocks = stocksRepository.getSelectedStocks()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isStocksLoading = false
             }
         }
     }
@@ -260,7 +280,7 @@ fun HomeScreen(navController: NavController) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFE5FFF4))
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
         Box(
             modifier = Modifier
@@ -392,7 +412,19 @@ fun HomeScreen(navController: NavController) {
         ) {
             val tabs = listOf("Status", "Widgets", "Location")
             tabs.forEachIndexed { i, tab ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable {
+                        selectedTab = i
+                        coroutineScope.launch {
+                            when (i) {
+                                0 -> scrollState.animateScrollTo(0) // Status section
+                                1 -> scrollState.animateScrollTo(400) // Widgets section
+                                2 -> scrollState.animateScrollTo(800) // Location section
+                            }
+                        }
+                    }
+                ) {
                     Text(
                         tab,
                         color = if (i == selectedTab) Color.Black else Color.Gray,
@@ -409,7 +441,10 @@ fun HomeScreen(navController: NavController) {
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+        
+        // Status Section (Tab 0)
+        if (selectedTab == 0) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -737,6 +772,115 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         }
+        }
+        
+        if (selectedTab == 1) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    "Widgets",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Stocks Widget
+                StocksWidget(
+                    stocks = stocks,
+                    isLoading = isStocksLoading,
+                    onStocksClick = { showStockSelectionDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // More widgets can be added here
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = WidgetBackground,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "More Widgets Coming Soon",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Additional customizable widgets will be available here",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+        }
+        
+        if (selectedTab == 2) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    "Location",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = WidgetBackground,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Location Services",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Location-based features will be available here",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    // Stock Selection Dialog
+    if (showStockSelectionDialog) {
+        StockSelectionDialog(
+            onDismiss = { showStockSelectionDialog = false },
+            onStocksSelected = { selectedSymbols ->
+                stocksRepository.saveSelectedStocks(selectedSymbols)
+                coroutineScope.launch {
+                    isStocksLoading = true
+                    try {
+                        stocks = stocksRepository.getSelectedStocks()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        isStocksLoading = false
+                    }
+                }
+            },
+            searchStocks = { query -> stocksRepository.searchStocks(query) },
+            getSelectedStocks = { stocksRepository.getSelectedStockSymbols() },
+            addStock = { symbol -> stocksRepository.addStock(symbol) },
+            removeStock = { symbol -> stocksRepository.removeStock(symbol) }
+        )
     }
 }
 
