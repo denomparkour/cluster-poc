@@ -48,6 +48,7 @@ import com.mhp.cluster.data.repository.StocksRepository
 import com.mhp.cluster.data.model.Stock
 import com.mhp.cluster.ui.components.StocksWidget
 import com.mhp.cluster.ui.components.StockSelectionDialog
+import com.mhp.cluster.ui.components.MilestoneWidget
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -790,6 +791,17 @@ fun HomeScreen(navController: NavController) {
                     stocks = stocks,
                     isLoading = isStocksLoading,
                     onStocksClick = { showStockSelectionDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Milestone Widget
+                MilestoneWidget(
+                    milestone = "2500",
+                    unit = "Kms",
+                    title = "Milestone Reached",
+                    emoji = "🏆",
                     modifier = Modifier.fillMaxWidth()
                 )
                 
