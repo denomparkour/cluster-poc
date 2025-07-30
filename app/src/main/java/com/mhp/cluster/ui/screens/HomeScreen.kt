@@ -85,7 +85,7 @@ fun HomeScreen(navController: NavController) {
     var isUpdatingRoute by remember { mutableStateOf(false) }
     var showStockSelectionDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    
+
     // Function to stop current journey
     fun stopCurrentJourney() {
         navigationRepository.clearCurrentRoute()
@@ -93,7 +93,7 @@ fun HomeScreen(navController: NavController) {
         routeInfo = null
         isUpdatingRoute = false
     }
-    
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -111,9 +111,32 @@ fun HomeScreen(navController: NavController) {
             }
         }
     }
-    
-    val hasLocationPermission by remember {
+
+        val hasLocationPermission by remember {
         derivedStateOf { locationService.hasLocationPermission() }
+    }
+    
+    // Function to load stocks with better error handling
+    fun loadStocks() {
+        isStocksLoading = true
+        coroutineScope.launch {
+            try {
+                val loadedStocks = stocksRepository.getSelectedStocks()
+                stocks = loadedStocks
+                println("Loaded ${loadedStocks.size} stocks: ${loadedStocks.map { it.symbol }}")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Fallback to mock data if API fails
+                stocks = listOf(
+                    Stock("AAPL", "Apple Inc.", 175.43, 2.15, 1.24, 1234567890, 2800000000000, 28.5, 0.92, 0.52),
+                    Stock("GOOGL", "Alphabet Inc.", 142.56, -1.23, -0.85, 987654321, 1800000000000, 25.2, 0.00, 0.00),
+                    Stock("MSFT", "Microsoft Corporation", 378.85, 5.67, 1.52, 456789123, 2800000000000, 35.8, 3.00, 0.79)
+                )
+                println("Using fallback stocks: ${stocks.map { it.symbol }}")
+            } finally {
+                isStocksLoading = false
+            }
+        }
     }
     
     // Check for current journey and update ETA in real-time
@@ -137,7 +160,7 @@ fun HomeScreen(navController: NavController) {
                     endLocation = GeoPoint(40.7589, -73.9851)
                 )
             }
-            
+
             // Try to get real-time update immediately
             coroutineScope.launch {
                 try {
@@ -162,7 +185,7 @@ fun HomeScreen(navController: NavController) {
             hasCurrentJourney = false
             routeInfo = null
         }
-        
+
         if (hasLocationPermission) {
             isWeatherLoading = true
             coroutineScope.launch {
@@ -175,18 +198,9 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         }
-        
+
         // Load stocks data
-        isStocksLoading = true
-        coroutineScope.launch {
-            try {
-                stocks = stocksRepository.getSelectedStocks()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                isStocksLoading = false
-            }
-        }
+        loadStocks()
     }
     
     // Real-time ETA updates
@@ -792,6 +806,7 @@ fun HomeScreen(navController: NavController) {
                     stocks = stocks,
                     isLoading = isStocksLoading,
                     onStocksClick = { showStockSelectionDialog = true },
+                    onRefresh = { loadStocks() },
                     modifier = Modifier.fillMaxWidth()
                 )
                 
@@ -835,16 +850,9 @@ fun HomeScreen(navController: NavController) {
             onDismiss = { showStockSelectionDialog = false },
             onStocksSelected = { selectedSymbols ->
                 stocksRepository.saveSelectedStocks(selectedSymbols)
-                coroutineScope.launch {
-                    isStocksLoading = true
-                    try {
-                        stocks = stocksRepository.getSelectedStocks()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        isStocksLoading = false
-                    }
-                }
+                println("Stocks selected: $selectedSymbols")
+                // Reload stocks after selection
+                loadStocks()
             },
             searchStocks = { query -> stocksRepository.searchStocks(query) },
             getSelectedStocks = { stocksRepository.getSelectedStockSymbols() },

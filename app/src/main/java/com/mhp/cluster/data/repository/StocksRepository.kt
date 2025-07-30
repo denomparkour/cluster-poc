@@ -49,6 +49,8 @@ class StocksRepository(private val context: Context) {
             val selectedSymbols = getSelectedStockSymbols()
             val symbolsToFetch = if (selectedSymbols.isEmpty()) defaultStocks else selectedSymbols
             
+            println("Fetching stocks for symbols: $symbolsToFetch")
+            
             val stocks = mutableListOf<Stock>()
             
             // Alpha Vantage doesn't support batch quotes, so we need to make individual calls
@@ -72,6 +74,11 @@ class StocksRepository(private val context: Context) {
                             yield = null // Alpha Vantage doesn't provide this in GLOBAL_QUOTE
                         )
                         stocks.add(stock)
+                        println("Successfully loaded stock: ${stock.symbol}")
+                    } else {
+                        println("API error for $symbol: ${response.errorMessage}")
+                        // If API call fails, add mock data as fallback
+                        stocks.add(getMockStockData(symbol))
                     }
                     
                     // Add delay to respect rate limits (5 calls per minute = 12 seconds between calls)
@@ -80,16 +87,19 @@ class StocksRepository(private val context: Context) {
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
+                    println("Exception for $symbol: ${e.message}")
                     // If API call fails, add mock data as fallback
                     stocks.add(getMockStockData(symbol))
                 }
             }
             
+            println("Final stocks list: ${stocks.map { it.symbol }}")
             stocks
         } catch (e: Exception) {
             e.printStackTrace()
-            // Return empty list on error
-            emptyList()
+            println("General exception in getSelectedStocks: ${e.message}")
+            // Return default stocks instead of empty list
+            defaultStocks.map { getMockStockData(it) }
         }
     }
     
@@ -97,10 +107,19 @@ class StocksRepository(private val context: Context) {
         try {
             if (query.length < 2) return@withContext emptyList()
             
+            println("Searching stocks for query: '$query'")
             val response = apiService.searchStocks(keywords = query, apiKey = apiKey)
             
+            println("Search response: bestMatches=${response.bestMatches?.size}, errorMessage=${response.errorMessage}, note=${response.note}")
+            
+            // Check if we hit rate limit
+            if (response.note?.contains("API call frequency") == true) {
+                println("Rate limit hit, using fallback data")
+                return@withContext getFallbackSearchResults(query)
+            }
+            
             if (response.bestMatches != null && response.errorMessage == null) {
-                response.bestMatches.map { result ->
+                val results = response.bestMatches.map { result ->
                     StockSearchResult(
                         symbol = result.symbol,
                         name = result.name,
@@ -113,30 +132,45 @@ class StocksRepository(private val context: Context) {
                         matchScore = result.matchScore.toDoubleOrNull() ?: 0.0
                     )
                 }
+                println("API search successful, found ${results.size} results")
+                results
             } else {
+                println("API search failed: ${response.errorMessage ?: "Unknown error"}")
                 // If API call fails, return mock data as fallback
-                val allStocks = listOf(
-                    StockSearchResult("AAPL", "Apple Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
-                    StockSearchResult("GOOGL", "Alphabet Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
-                    StockSearchResult("MSFT", "Microsoft Corporation", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
-                    StockSearchResult("AMZN", "Amazon.com Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
-                    StockSearchResult("TSLA", "Tesla Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
-                    StockSearchResult("NVDA", "NVIDIA Corporation", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
-                    StockSearchResult("META", "Meta Platforms Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
-                    StockSearchResult("NFLX", "Netflix Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
-                    StockSearchResult("JPM", "JPMorgan Chase & Co.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
-                    StockSearchResult("JNJ", "Johnson & Johnson", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0)
-                )
-                
-                allStocks.filter { 
-                    it.symbol.contains(query.uppercase()) || 
-                    it.name.contains(query, ignoreCase = true) 
-                }
+                getFallbackSearchResults(query)
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            emptyList()
+            println("Exception in searchStocks: ${e.message}")
+            getFallbackSearchResults(query)
         }
+    }
+    
+    private fun getFallbackSearchResults(query: String): List<StockSearchResult> {
+        val allStocks = listOf(
+            StockSearchResult("AAPL", "Apple Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("GOOGL", "Alphabet Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("MSFT", "Microsoft Corporation", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("AMZN", "Amazon.com Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("TSLA", "Tesla Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("NVDA", "NVIDIA Corporation", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("META", "Meta Platforms Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("NFLX", "Netflix Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("JPM", "JPMorgan Chase & Co.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("JNJ", "Johnson & Johnson", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("BRK.A", "Berkshire Hathaway Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("UNH", "UnitedHealth Group Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("PG", "Procter & Gamble Co.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("HD", "Home Depot Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0),
+            StockSearchResult("MA", "Mastercard Inc.", "Common Stock", "US", "09:30", "16:00", "UTC-05", "USD", 1.0)
+        )
+        
+        val filteredResults = allStocks.filter { 
+            it.symbol.contains(query.uppercase()) || 
+            it.name.contains(query, ignoreCase = true) 
+        }
+        println("Using fallback search, found ${filteredResults.size} results")
+        return filteredResults
     }
     
     suspend fun getStockQuote(symbol: String): Stock? = withContext(Dispatchers.IO) {
