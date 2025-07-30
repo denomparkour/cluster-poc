@@ -57,8 +57,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.filled.Battery2Bar
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -88,7 +91,7 @@ fun HomeScreen(navController: NavController) {
     var showStockSelectionDialog by remember { mutableStateOf(false) }
     val animatedSpeed = remember { Animatable(0f) }
     val vehicleStatus = remember { mutableStateOf("Parked") }
-
+    val currentWeather = remember { mutableIntStateOf(30) }
     val coroutineScope = rememberCoroutineScope()
 
     // Function to stop current journey
@@ -483,10 +486,10 @@ fun HomeScreen(navController: NavController) {
                     },
                     icon = {
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                            imageVector = Icons.Filled.Battery2Bar,
                             contentDescription = null,
                             tint = Color(0xFF4ADE80),
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(35.dp)
                         )
                     },
                     modifier = Modifier
@@ -497,25 +500,59 @@ fun HomeScreen(navController: NavController) {
                 DashboardCard(
                     title = "Climate",
                     subtitle = "Interior 27°",
-                    content = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { }) {
-                                Text("+", color = Color.Black, fontSize = 18.sp)
-                            }
-                            Text("20°", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.Black)
-                            IconButton(onClick = { }) {
-                                Text("-", color = Color.Black, fontSize = 18.sp)
-                            }
-                        }
-                        Text("Cooling", color = Color(0xFF60A5FA), fontSize = 13.sp)
-                    },
                     icon = {
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                            imageVector = Icons.Default.Cloud,
                             contentDescription = null,
                             tint = Color(0xFF60A5FA),
                             modifier = Modifier.size(28.dp)
                         )
+                    },
+                    content = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentHeight()
+                                .padding(top = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                IconButton(onClick = {
+                                    if(currentWeather.intValue < 31) {
+                                        currentWeather.intValue += 1
+                                    }
+                                }) {
+                                    Text("+", color = Color.Black, fontSize = 18.sp)
+                                }
+
+                                Text(
+                                    text = "${currentWeather.intValue}°",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    color = Color.Black
+                                )
+
+                                IconButton(onClick = {
+                                    if(currentWeather.intValue > 16) {
+                                        currentWeather.intValue -= 1
+                                    }
+                                })
+                                {
+                                    Text("-", color = Color.Black, fontSize = 18.sp)
+                                }
+                            }
+
+                            Text(
+                                text = "Cooling",
+                                color = Color(0xFF60A5FA),
+                                fontSize = 13.sp,
+                            )
+                        }
                     },
                     modifier = Modifier
                         .weight(1f)
